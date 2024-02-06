@@ -17,19 +17,22 @@ Esta es una herramienta para la exploracion de datos
 
 ---
 ''')
+side_bar=1
+# Side bar
+st.sidebar.header(str(side_bar)+'. Cargue el archivo CSV')
+uploaded_file = st.sidebar.file_uploader("Upload your input CSV file")
 
-# Upload CSV data
-with st.sidebar.header('1. Upload your CSV data'):
-    uploaded_file = st.sidebar.file_uploader("Upload your input CSV file")
+
     
 if uploaded_file:
-    df = pd.read_excel(uploaded_file)
+    df = pd.read_csv(uploaded_file)
     st.header('**Tabla de datos**')
     st.write(df)
-    st.write('---')
     st.header('**Reporte de Datos**')
     pr=ProfileReport(df,explorative=True)
     st_profile_report(pr)
+
+
 
 else:
     st.info('Esperando que se cargue datos')
