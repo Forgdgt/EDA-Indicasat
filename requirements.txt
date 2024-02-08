@@ -4,8 +4,10 @@ numpy
 plotly
 openpyxl
 plotly
-pandas-profiling
 ydata-profiling
 streamlit-pandas-profiling
 Jinja2
 openpyxl
+streamlit-option-menu
+random2
+pingouin
