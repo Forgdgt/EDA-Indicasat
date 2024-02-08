@@ -187,10 +187,9 @@ def generar_graficos_qq_plot(dataframes, nombres_categorias):
             ax.get_lines()[1].set_linestyle('-')  # Cambiar el estilo de línea para una mejor visualización
             st.pyplot(fig)  
 
-def generar_homesaticidad(dataframes, nombres_categorias):
+def generar_box_plot(dataframes, nombres_categorias):
     combined_df = pd.concat(dataframes, axis=1, ignore_index=True)
     combined_df.columns = nombres_categorias  # Asignar nombres de categorías como nombres de columnas
-
 
     fig, ax = plt.subplots()
     sns.boxplot(data=combined_df, ax=ax)
@@ -199,21 +198,72 @@ def generar_homesaticidad(dataframes, nombres_categorias):
     ax.set_xticklabels(combined_df.columns, rotation=45, ha='right')  # Rotar etiquetas en el eje x
     st.pyplot(fig)
 
-    # Calcular homocedasticidad
-    homoscedasticity_result = pg.homoscedasticity(combined_df)
-    st.write("### Prueba de homocedasticidad:")
-    st.write(homoscedasticity_result)
-    homoscedasticity_passed = homoscedasticity_result['homoscedasticity'][0]
+def prueba_homocedasticidad(dataframes, nombre_categoria):
 
-    if homoscedasticity_passed:
-        st.success("Los datos cumplen con la homocedasticidad")
+    combined_series = pd.concat([pd.Series(df.values.flatten()) for df in dataframes])
+
+    # Crear una serie con el nombre de la categoría repetido según la longitud de cada dataframe
+    categoria_repetida = np.repeat(nombre_categoria, [len(df) for df in dataframes])
+
+    # Crear un DataFrame combinando las series de valores y categorías
+    combined_df = pd.DataFrame({'Valores': combined_series, 'Categoría': categoria_repetida})
+    
+
+    # Calcular homocedasticidad
+    st.write("### Prueba de homocedasticidad:")
+    homoscedasticity_result = pg.homoscedasticity(combined_df, dv='Valores', group='Categoría')
+
+    st.write(homoscedasticity_result)
+   
+    p_value = homoscedasticity_result['pval'].iloc[0]
+
+    if round(p_value,2) > 0.05:
+        st.success("Los datos cumplen con la homocedasticidad (p-value = {:.4f})".format(p_value))
+        homoscedasticity_passed = True
     else:
-        st.warning("Los datos no cumplen con la homocedasticidad")
+        st.warning("Los datos no cumplen con la homocedasticidad (p-value = {:.4f})".format(p_value))
+        homoscedasticity_passed = False
 
     return homoscedasticity_passed
 
+def realizar_t_test(dataframes, nombres_categorias, homoscedasticity_passed=True,paired=False):
+    st.markdown("### Realizando prueba t de Student:")
+    st.markdown("Solo se tomarán en cuenta los primeros dos conjuntos de datos.")
 
-        
+    df1, nombre_categoria1 = dataframes[0], nombres_categorias[0]
+    df2, nombre_categoria2 = dataframes[1], nombres_categorias[1]
+
+    # Realizar el t-test
+    if homoscedasticity_passed:
+        ttest_result = pg.ttest(x=df1.values.flatten(), y=df2.values.flatten(), alternative='two-sided', correction=(not homoscedasticity_passed),paired=paired)
+    else:
+        ttest_result = pg.ttest(x=df1.values.flatten(), y=df2.values.flatten(), alternative='two-sided', correction=(not homoscedasticity_passed),paired=paired)
+    st.write(ttest_result)
+
+    p_value = ttest_result['p-val'].iloc[0]
+
+    if round(p_value,2) > 0.05:
+        st.success(f"Los datos de '{nombre_categoria1}' y '{nombre_categoria2}' son estadísticamente similares (p-value = {p_value:.4f})")
+    else:
+        st.warning(f"Los datos de '{nombre_categoria1}' y '{nombre_categoria2}' son estadísticamente diferentes (p-value = {p_value:.4f})")
+
+def realizar_Mann_Whitney(dataframes, nombres_categorias):
+    st.markdown("### Realizando prueba Mann-Whitney-Wilcoxon:")
+    st.markdown("Solo se tomarán en cuenta los primeros dos conjuntos de datos.")
+
+    df1, nombre_categoria1 = dataframes[0], nombres_categorias[0]
+    df2, nombre_categoria2 = dataframes[1], nombres_categorias[1]
+
+    # Realizar el Mann-Whitney-Wilcoxon
+    t_man_wh=pg.mwu(x=df1.values.flatten(), y=df2.values.flatten(), alternative='two-sided')
+    st.write(t_man_wh)
+    p_value = t_man_wh['p-val'].iloc[0]
+
+    if round(p_value,2) > 0.05:
+        st.success(f"Los datos de '{nombre_categoria1}' y '{nombre_categoria2}' son estadísticamente similares (p-value = {p_value:.4f})")
+    else:
+        st.warning(f"Los datos de '{nombre_categoria1}' y '{nombre_categoria2}' son estadísticamente diferentes (p-value = {p_value:.4f})")
+     
 
 def normality_test(dataframes, nombres_categorias):
     num_plots = len(dataframes)
@@ -226,7 +276,7 @@ def normality_test(dataframes, nombres_categorias):
             normality_result = pg.normality(df)
             st.write(normality_result)
             p_value = normality_result['pval'][0]
-            if p_value > 0.05:
+            if round(p_value,2) > 0.05:
                 st.success(f"Los datos siguen una distribución normal (p-value = {p_value})")
             else:
                 st.warning(f"Los datos no siguen una distribución normal (p-value = {p_value})")
@@ -247,14 +297,47 @@ def t_student(dataframes, nombres_categorias):
     tipo_de_seleccion =['Independientes','No Independietes']
     seleccion = st.radio('Tipo de muestra:',tipo_de_seleccion)
     
-    generar_graficos_distribucion(dataframes, nombres_categorias)
-    generar_graficos_qq_plot(dataframes, nombres_categorias)
-    normality_test(dataframes, nombres_categorias)
-    st.markdown('**homocedasticidad**')
-    st.markdown('''La varianza de ambas poblaciones comparadas debe de ser igual. Tal como ocurre con la condición de normalidad, 
-                si no se dispone de información de las poblaciones, esta condición se ha de asumir a partir de las muestras. 
-                En caso de no cumplirse esta condición, se puede emplear la corrección de Welch''')
-    #generar_homesaticidad(dataframes, nombres_categorias)
+    if st.button("Calcular T-test"):
+        
+
+        st.markdown('**Normalidad**')
+        st.markdown('''Las poblaciones que se comparan tienen que distribuirse de forma normal.
+                     En caso de cierta asimetría los t-test son considerablemente robustos cuando el tamaño de las muestras 
+                    es igual o mayor a 30.''')
+        generar_graficos_distribucion(dataframes, nombres_categorias)
+        generar_graficos_qq_plot(dataframes, nombres_categorias)
+        normality_test(dataframes, nombres_categorias)
+
+        if seleccion =="Independientes":
+            st.markdown('**homocedasticidad**')
+            st.markdown('''La varianza de ambas poblaciones comparadas debe de ser igual. Tal como ocurre con la condición de normalidad, 
+                        si no se dispone de información de las poblaciones, esta condición se ha de asumir a partir de las muestras. 
+                        En caso de no cumplirse esta condición, se puede emplear la corrección de Welch''')
+            generar_box_plot(dataframes, nombres_categorias)
+            homoscedasticity_passed=prueba_homocedasticidad(dataframes, nombres_categorias)
+            realizar_t_test(dataframes, nombres_categorias, homoscedasticity_passed)
+        elif seleccion =="No Independietes":
+            realizar_t_test(dataframes, nombres_categorias,paired=True)
+
+def T_Mann_Whitney(dataframes, nombres_categorias):
+    st.subheader("Mann-Whitney-Wilcoxon")
+    st.markdown('''Prueba no paramétrica utilizada para comparar las medianas de dos grupos independientes. 
+                Se utiliza cuando los datos no cumplen con los supuestos de normalidad o cuando la varianza entre 
+                los grupos es desigual. ''')
+    st.markdown('''
+                H0: No hay diferencias entre las medias (p-value alto): μx = μy
+                
+                Ha: Hay diferencias entre las medias (p-value bajo): μx ≠ μy
+                 ''')
+    if st.button("Calcular Mann-Whitney-Wilcoxon"):
+        st.markdown('**homocedasticidad**')
+        st.markdown('''La varianza de ambas poblaciones comparadas debe de ser igual. Tal como ocurre con la condición de normalidad, 
+                        si no se dispone de información de las poblaciones, esta condición se ha de asumir a partir de las muestras. 
+                        En caso de no cumplirse esta condición, se puede emplear la corrección de Welch''')
+        generar_box_plot(dataframes, nombres_categorias)
+        prueba_homocedasticidad(dataframes, nombres_categorias)
+        realizar_Mann_Whitney(dataframes, nombres_categorias)
+
 
 
 def cambio_de_tipo(df=None):
@@ -334,6 +417,8 @@ if selected =="Analisis Comparativo":
         st.header("Variables Continuas (numericas)")
         st.markdown("---")
         t_student(dataframes, nombres_categorias)
+        st.markdown("---")
+        T_Mann_Whitney(dataframes, nombres_categorias)
         
 
     else:
