@@ -283,7 +283,7 @@ def normality_test(dataframes, nombres_categorias):
                 
 
 def t_student(dataframes, nombres_categorias):
-    st.subheader("T-test")
+    st.subheader("T-test (2 muestras)")
     st.markdown('''Test estadístico empleado para analizar si dos muestras proceden de poblaciones con la misma media. 
                         Para ello, cuantifica la diferencia entre la media de las dos muestras y, teniendo en cuenta la varianza de estas.''')
     st.markdown('''
@@ -320,7 +320,7 @@ def t_student(dataframes, nombres_categorias):
             realizar_t_test(dataframes, nombres_categorias,paired=True)
 
 def T_Mann_Whitney(dataframes, nombres_categorias):
-    st.subheader("Mann-Whitney-Wilcoxon")
+    st.subheader("Mann-Whitney-Wilcoxon (2 muestras)")
     st.markdown('''Prueba no paramétrica utilizada para comparar las medianas de dos grupos independientes. 
                 Se utiliza cuando los datos no cumplen con los supuestos de normalidad o cuando la varianza entre 
                 los grupos es desigual. ''')
