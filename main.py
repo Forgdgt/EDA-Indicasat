@@ -340,26 +340,45 @@ def T_Mann_Whitney(dataframes, nombres_categorias):
 
 
 
-def cambio_de_tipo(df=None):
+def mostrar_selectores_tipo_datos(df=None):
     # Mostrar los tipos de datos actuales y permitir al usuario cambiarlos
     st.sidebar.header("Configuración de tipos de datos")
     original_data_types = {}
+    # Mostrar los selectores para cada columna
     for column in main_data.columns:
         original_data_types[column] = str(main_data[column].dtype)
-    # Crear un diccionario para almacenar los tipos de datos seleccionados por el usuario
-    modified_data_types = original_data_types.copy()
-    # Iterar sobre las columnas del DataFrame
-    for column in main_data.columns:
-        # Mostrar el tipo de dato original y permitir al usuario cambiarlo
+
+    modified_data_types = {}
+    for column in df.columns:
         data_type = st.sidebar.selectbox(f"Tipo de dato para {column} (Original: {original_data_types[column]})", 
-                                         options=["int", "float64", "str","object"], index=["int", "float64", "str","object"].index(original_data_types[column]))
+                                         options=["int64", "float64", "str","category"], index=["int64", "float64", "str","category"].index(original_data_types[column]))
         modified_data_types[column] = data_type
 
-    # Convertir los tipos de datos según lo seleccionado por el usuario y mostrar el resultado
-    modified_data = main_data.astype(modified_data_types)
-    return modified_data
+    return modified_data_types
 
-        
+def cambio_de_tipo(df, modified_data_types):
+    modified_data = df.copy()
+    type_schema = {}
+
+
+    # Convertir los tipos de datos según lo seleccionado por el usuario
+    for column, data_type in modified_data_types.items():
+        if data_type == "int64":
+            modified_data[column] = modified_data[column].astype(int)
+            data_type = "Numeric"
+        elif data_type == "float64":
+            modified_data[column] = modified_data[column].astype(float)
+            data_type = "Numeric"
+        elif data_type == "str":
+            modified_data[column] = modified_data[column].astype(str)
+            data_type = "Text"
+        elif data_type == "category":
+            modified_data[column] = modified_data[column].astype('category')
+            data_type = "categorical"
+        # Actualizar el esquema de tipos de datos
+        type_schema[column] = data_type
+
+    return modified_data  ,type_schema
 
 #Inicio
 st.set_page_config(page_title="EDA", page_icon=":bar_chart:", layout="wide")
@@ -393,15 +412,28 @@ selected = option_menu(
 #cargando arhivo si existe
 if uploaded_file:   
     main_data = pd.read_csv(uploaded_file)
-    data=cambio_de_tipo(main_data)
+    object_columns = main_data.select_dtypes(include=['object']).columns
+
+    # Convertir las columnas de tipo 'object' a 'categorical'
+    main_data[object_columns] = main_data[object_columns].astype('category')
 
 if selected =="Analisis Descriptivo":
     if uploaded_file:
         st.header('**Tabla de datos**')
-        st.write(data)
+
+        tipo_data=mostrar_selectores_tipo_datos(main_data)
+        data,schema=cambio_de_tipo(main_data,tipo_data)
+
+
+        tabla_filtrada=filter_dataframe(data)
+        st.dataframe(tabla_filtrada)
+ 
+
         st.header('**Reporte de Datos**')
-        pr=ProfileReport(data,explorative=True)
-        st_profile_report(pr)
+        if st.button("Calcular resumen estadistico"):
+            pr=ProfileReport(tabla_filtrada,explorative=True,type_schema=schema)
+            ProfileReport()
+            st_profile_report(pr)
     else:
         st.info('Esperando que se cargue datos')
 
