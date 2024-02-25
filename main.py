@@ -442,6 +442,9 @@ if selected =="Analisis Comparativo":
         st.header('**Datos utilizados en el analisis**')
         st.markdown('''Utilice esta seccion para hacer los filtros necesarios a la data principal.
                     Los filtros que se apliquen a esta data se estaran aplicando para todos los analisis''')
+        tipo_data=mostrar_selectores_tipo_datos(main_data)
+        data,schema=cambio_de_tipo(main_data,tipo_data)
+
         tabla_filtrada=filter_dataframe(data)
         st.dataframe(tabla_filtrada)
         dataframes, nombres_categorias =seleccion_datos(tabla_filtrada)
