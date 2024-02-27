@@ -351,7 +351,7 @@ def mostrar_selectores_tipo_datos(df=None):
     modified_data_types = {}
     for column in df.columns:
         data_type = st.sidebar.selectbox(f"Tipo de dato para {column} (Original: {original_data_types[column]})", 
-                                         options=["int64", "float64", "str","category"], index=["int64", "float64", "str","category"].index(original_data_types[column]))
+                                         options=["int64", "float64", "str","object"], index=["int64", "float64", "str","object"].index(original_data_types[column]))
         modified_data_types[column] = data_type
 
     return modified_data_types
@@ -372,8 +372,8 @@ def cambio_de_tipo(df, modified_data_types):
         elif data_type == "str":
             modified_data[column] = modified_data[column].astype(str)
             data_type = "Text"
-        elif data_type == "category":
-            modified_data[column] = modified_data[column].astype('category')
+        elif data_type == "object":
+            modified_data[column] = modified_data[column].astype('object')
             data_type = "categorical"
         # Actualizar el esquema de tipos de datos
         type_schema[column] = data_type
@@ -414,8 +414,6 @@ if uploaded_file:
     main_data = pd.read_csv(uploaded_file)
     object_columns = main_data.select_dtypes(include=['object']).columns
 
-    # Convertir las columnas de tipo 'object' a 'categorical'
-    main_data[object_columns] = main_data[object_columns].astype('category')
 
 if selected =="Analisis Descriptivo":
     if uploaded_file:
